@@ -29,6 +29,7 @@ from model import MouseClassifier
 
 
 def get_args():
+    # 設置命令行參數解析
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--device", type=int, default=0)
@@ -100,11 +101,11 @@ def main():
     # FPS Measurement ########################################################
     cvFpsCalc = CvFpsCalc(buffer_len=3)
 
-    # Coordinate history #################################################################
+    # 座標歷史記錄
     history_length = 16
     point_history = deque(maxlen=history_length)
 
-    # Finger gesture history ################################################
+    # 手指姿勢歷史記錄
     finger_gesture_history = deque(maxlen=history_length)
     mouse_id_history = deque(maxlen=40)
 
@@ -113,11 +114,11 @@ def main():
     keypoint_R = deque(maxlen=keypoint_length)
     keypoint_L = deque(maxlen=keypoint_length)
 
-    # result deque
+    # 結果隊列
     rest_length = 300
     rest_result = deque(maxlen=rest_length)
     speed_up_count = deque(maxlen=3)
-    
+
     # ========= 使用者自訂姿勢、指令區 =========
     # time.sleep(0.5)
     # keepadd = False
@@ -149,7 +150,7 @@ def main():
 #     speech_0.save('keyboard.mp3')
 #     speech = gTTS(text="mouse mode", lang='zh-TW')
 #     speech.save('mouse.mp3')
-    
+
     speech_0 = gTTS(text="睡眠模式",lang='zh-TW' ,tld='com')
     speech_0.save('rest.mp3')
     speech_0 = gTTS(text="鍵盤模式",lang='zh-TW',tld='com')
@@ -166,29 +167,29 @@ def main():
         left_id = right_id = -1
         fps = cvFpsCalc.get()
 
-        # Process Key (ESC: end) 
+        # Process Key (ESC: end)
         key = cv.waitKey(10)
         if key == 27:  # ESC
             break
         number, mode = select_mode(key, mode)
 
-        # Camera capture 
+        # Camera capture
         ret, image = cap.read()
         if not ret:
             break
         image = cv.flip(image, 1)  # Mirror display
         debug_image = copy.deepcopy(image)
 
-        # Detection implementation 
+        # Detection implementation
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
         image.flags.writeable = False
         results = hands.process(image)
         image.flags.writeable = True
-        
-        
-        
-        ####rest_result####
+
+
+
+        # 檢測是否有手
         if results.multi_hand_landmarks is None:
             rest_id = 0
             rest_result.append(rest_id)
@@ -207,7 +208,7 @@ def main():
         #         what_mode = 'Rest'
         #         print(f'Current mode => {what_mode}')
 
-        # new version for 10 sec to rest mode###################
+        # 檢查是否進入休眠模式
         if time.time() - resttime > 10:
             if detect_mode != 0:
                 detect_mode = 0
@@ -215,45 +216,47 @@ def main():
                 print(f'Current mode => {what_mode}')
 
         ####rest_result####
-        
-        
-        
-        
+
+
+
+
         #  ####################################################################
         # print(most_common_rest_result)
+
+        # 如果檢測到手
         if results.multi_hand_landmarks is not None:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
 
-                # Bounding box calculation
+                # 計算邊界框
                 brect = calc_bounding_rect(debug_image, hand_landmarks)
-                # Landmark calculation
+                # 計算關鍵點
                 landmark_list = calc_landmark_list(debug_image, hand_landmarks)
                 # print(landmark_list)
 
-                # Conversion to relative coordinates / normalized coordinates
+                # 轉換為相對座標/正規化座標
                 pre_processed_landmark_list = pre_process_landmark(landmark_list)
                 pre_processed_point_history_list = pre_process_point_history(debug_image, point_history)
-                # Write to the dataset file
+                # 寫入數據集文件
                 logging_csv(number, mode, pre_processed_landmark_list, pre_processed_point_history_list)
-                
-                # 靜態手勢資料預測     
+
+                # 靜態手勢資料預測
                 hand_sign_id_R = keypoint_classifier_R(pre_processed_landmark_list)
-                hand_sign_id_L = keypoint_classifier_L(pre_processed_landmark_list)              
+                hand_sign_id_L = keypoint_classifier_L(pre_processed_landmark_list)
                 mouse_id = mouse_classifier(pre_processed_landmark_list)
                 # print(mouse_id)
                 if handedness.classification[0].label[0:] == 'Left':
                     left_id = hand_sign_id_L
-                
-                else:
-                    right_id = hand_sign_id_R    
 
-                # 手比one 觸發動態資料抓取
+                else:
+                    right_id = hand_sign_id_R
+
+                # 手勢為"1"時觸發動態手勢檢測
                 if right_id == 1 or left_id ==1:
                     point_history.append(landmark_list[8])
                 else:
                     point_history.append([0, 0])
 
-                # 動態手勢資料預測
+                # 動態手勢預測
                 finger_gesture_id = 0
                 point_history_len = len(pre_processed_point_history_list)
                 if point_history_len == (history_length * 2):
@@ -261,17 +264,17 @@ def main():
                 # print(finger_gesture_id) # 0 = stop, 1 = clockwise, 2 = counterclockwise, 3 = move,偵測出現的動態手勢
 
                 # 動態手勢最常出現id #########################################
-                # Calculates the gesture IDs in the latest detection
+                # 計算最常出現的動態手勢ID
                 finger_gesture_history.append(finger_gesture_id)
                 most_common_fg_id = Counter(finger_gesture_history).most_common()
 
-                #滑鼠的deque
+                # 滑鼠手勢的deque
                 mouse_id_history.append(mouse_id)
                 most_common_ms_id = Counter(mouse_id_history).most_common()
                 # print(f'finger_gesture_history = {finger_gesture_history}')
                 # print(f'most_common_fg_id = {most_common_fg_id}')
 
-                # 靜態手勢最常出現id #########################################
+                # 計算最常出現的靜態手勢ID
                 hand_gesture_id = [right_id, left_id]
                 keypoint_R.append(hand_gesture_id[0])
                 keypoint_L.append(hand_gesture_id[1])
@@ -282,14 +285,14 @@ def main():
                 else:
                     most_common_keypoint_id = Counter(keypoint_L).most_common()
 
-                
-                
+
+
                 # print(f'keypoint = {keypoint}')
                 # print(f'most_common_keypoint_id = {most_common_keypoint_id}')
 
                 ###############################################################
 
-                # Drawing part
+                # 繪製部分
                 debug_image = draw_bounding_rect(use_brect, debug_image, brect)
                 debug_image = draw_landmarks(debug_image, landmark_list)
                 debug_image = draw_info_text(
@@ -306,8 +309,7 @@ def main():
         debug_image = draw_point_history(debug_image, point_history)
         debug_image = draw_info(debug_image, fps, mode, number)
 
-        # 偵測是否有手勢 #########################################
-
+        # 檢測是否有手勢並執行相應操作
         if left_id + right_id > -2:
             if time.time() - presstime > 1:
                 # change mode
@@ -326,7 +328,7 @@ def main():
                     print(f'Current mode => {what_mode}')
                     presstime = time.time() + 1
 
-                # control keyboard
+                # 鍵盤控制模式
                 elif detect_mode == 1:
                     if time.time() - presstime_2 > 1:
                         # 靜態手勢控制
@@ -382,7 +384,7 @@ def main():
                             print('slow down')
                             presstime_3 = time.time()
 
-
+            # 滑鼠控制模式
             if detect_mode == 2:
                 if mouse_id == 0:  # Point gesture
                     # print(landmark_list[8]) #index finger
@@ -392,25 +394,26 @@ def main():
                     #              (255, 0, 255), 2)
                     cv.rectangle(debug_image, (50, 30), (cap_width - 50, cap_height - 170),
                                  (255, 0, 255), 2)
-                    #座標轉換 
+                    #座標轉換
                     #x軸: 鏡頭上50~(cap_width - 50)轉至螢幕寬0~wScr
                     #y軸: 鏡頭上30~(cap_height - 170)轉至螢幕長0~hScr
                     x3 = np.interp(x1, (50, (cap_width - 50)), (0, wScr))
                     y3 = np.interp(y1, (30, (cap_height - 170)), (0, hScr))
                     # print(x3, y3)
-                    
-                    # 6. Smoothen Values
+
+                    # 平滑化移動
                     clocX = plocX + (x3 - plocX) / smoothening
                     clocY = plocY + (y3 - plocY) / smoothening
-                    # 7. Move Mouse
+                    # 移動滑鼠
                     pyautogui.moveTo(clocX, clocY)
                     cv.circle(debug_image, (x1, y1), 15, (255, 0, 255), cv.FILLED)
                     plocX, plocY = clocX, clocY
 
                 if mouse_id == 1:
+                    # 計算食指和中指的距離
                     length, img, lineInfo = findDistance(landmark_list[8], landmark_list[12], debug_image)
 
-                    # 10. Click mouse if distance short
+                    # 如果距離小於40，進行點擊
                     if time.time() - clicktime > 0.5:
                         if length < 40:
                             cv.circle(img, (lineInfo[4], lineInfo[5]),
@@ -426,26 +429,28 @@ def main():
                             # pyautogui.click(clicks=2)
                             # print('click*2')
                             # clicktime = time.time()
-
+                # 滾輪向上
                 if most_common_keypoint_id[0][0] == 5 and most_common_keypoint_id[0][1] == 5:
                     pyautogui.scroll(20)
-
+                # 滾輪向下
                 if most_common_keypoint_id[0][0] == 6 and most_common_keypoint_id[0][1] == 5:
                     pyautogui.scroll(-20)
 
                 #if left_id == 7 or right_id == 7:
+                # 雙擊
                 if most_common_keypoint_id[0][0] == 0 and most_common_keypoint_id[0][1] == 5:
                     if time.time() - clicktime > 1:
                         pyautogui.click(clicks=2)
                         clicktime = time.time()
-
+                # 返回上一頁
                 if most_common_keypoint_id[0][0] == 9 and most_common_keypoint_id[0][1] == 5:
                     if time.time() - clicktime > 2:
                         pyautogui.hotkey('alt', 'left')
                         clicktime = time.time()
-
+        # 顯示當前模式
         cv.putText(debug_image, what_mode, (400, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
         # Screen reflection ###################################JL##########################
+        # 顯示處理後的影像
         cv.imshow('Hand Gesture Recognition', debug_image)
 
     cap.release()
@@ -453,6 +458,7 @@ def main():
 
 
 def select_mode(key, mode):
+    # 根據按鍵選擇模式
     number = -1
     if 48 <= key <= 57:  # 0 ~ 9
         number = key - 48
@@ -466,6 +472,7 @@ def select_mode(key, mode):
 
 
 def calc_bounding_rect(image, landmarks):
+    # 計算手部邊界框
     image_width, image_height = image.shape[1], image.shape[0]
 
     landmark_array = np.empty((0, 2), int)
@@ -484,6 +491,7 @@ def calc_bounding_rect(image, landmarks):
 
 
 def calc_landmark_list(image, landmarks):
+    # 計算手部關鍵點列表
     image_width, image_height = image.shape[1], image.shape[0]
 
     landmark_point = []
@@ -500,6 +508,7 @@ def calc_landmark_list(image, landmarks):
 
 
 def pre_process_landmark(landmark_list):
+    # 預處理關鍵點數據
     temp_landmark_list = copy.deepcopy(landmark_list)
 
     # Convert to relative coordinates
@@ -527,6 +536,7 @@ def pre_process_landmark(landmark_list):
 
 
 def pre_process_point_history(image, point_history):
+    # 預處理點歷史數據
     image_width, image_height = image.shape[1], image.shape[0]
 
     temp_point_history = copy.deepcopy(point_history)
@@ -548,6 +558,7 @@ def pre_process_point_history(image, point_history):
 
 
 def logging_csv(number, mode, landmark_list, point_history_list):
+    # 記錄數據到CSV文件
     if mode == 0:
         pass
     if mode == 1 and (0 <= number <= 9):
@@ -564,6 +575,7 @@ def logging_csv(number, mode, landmark_list, point_history_list):
 
 
 def draw_landmarks(image, landmark_point):
+    # 在圖像上繪製手部關鍵點
     # 接続線
     if len(landmark_point) > 0:
         # 親指
@@ -690,6 +702,7 @@ def draw_landmarks(image, landmark_point):
 
 
 def draw_bounding_rect(use_brect, image, brect):
+    # 繪製邊界矩形
     if use_brect:
         # Outer rectangle
         cv.rectangle(image, (brect[0], brect[1]), (brect[2], brect[3]),
@@ -700,6 +713,7 @@ def draw_bounding_rect(use_brect, image, brect):
 
 def draw_info_text(image, brect, handedness, hand_sign_text,
                    finger_gesture_text):
+    # 在圖像上繪製信息文字
     cv.rectangle(image, (brect[0], brect[1]), (brect[2], brect[1] - 22),
                  (0, 0, 0), -1)
 
@@ -720,6 +734,7 @@ def draw_info_text(image, brect, handedness, hand_sign_text,
 
 
 def draw_point_history(image, point_history):
+    # 繪製點歷史
     for index, point in enumerate(point_history):
         if point[0] != 0 and point[1] != 0:
             cv.circle(image, (point[0], point[1]), 1 + int(index / 2),
@@ -729,6 +744,7 @@ def draw_point_history(image, point_history):
 
 
 def draw_info(image, fps, mode, number):
+    # 在圖像上繪製FPS和模式信息
     cv.putText(image, "FPS:" + str(fps), (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
     cv.putText(image, "FPS:" + str(fps), (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
 
@@ -745,6 +761,7 @@ def draw_info(image, fps, mode, number):
 
 
 def control_keyboard(most_common_keypoint_id, select_right_id, command, keyboard_TF=True, print_TF=True, speed_up=False):
+    # 控制鍵盤
     if speed_up == False:
         if most_common_keypoint_id[0][0] == select_right_id and most_common_keypoint_id[0][1] == 5:
             if keyboard_TF:
@@ -854,6 +871,7 @@ def pick_command(inputstring='what command'):
 
 
 def findDistance(p1, p2, img, draw=True, r=15, t=3):
+    # 計算兩點間距離並在圖像上繪製
     x1, y1 = p1
     x2, y2 = p2
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
