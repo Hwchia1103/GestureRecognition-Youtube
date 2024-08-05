@@ -807,14 +807,14 @@ def control_keyboard(most_common_keypoint_id, select_right_id, command, keyboard
     #         if print_TF:
     #             print(command)
 
-
+#未用
 def pick_gesture_command():
     left_number = input('left gesture number :')
     right_number = input('right gesture number :')
     command = input('what command :')
     return int(left_number), int(right_number), command
 
-
+#未用
 def pick_number(inputstring):
     keepask = True
     while keepask:
@@ -831,7 +831,7 @@ def pick_number(inputstring):
             # print('choosing nicely')
     return number
 
-
+#未用
 def pick_command(inputstring='what command'):
     keepask = True
     while keepask:
