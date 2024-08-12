@@ -332,12 +332,16 @@ def main():
                 elif detect_mode == 1:
                     if time.time() - presstime_2 > 1:
                         # 靜態手勢控制
-                        control_keyboard(most_common_keypoint_id, 2, 'K', keyboard_TF=True, print_TF=True)
+                        #全螢幕
+                        control_keyboard(most_common_keypoint_id, 2, 'f5', keyboard_TF=True, print_TF=True)
+                        #退出全螢幕
+                        control_keyboard(most_common_keypoint_id, 9, 'esc', keyboard_TF=True, print_TF=True)
+                        #上一頁
+                        control_keyboard(most_common_keypoint_id, 5, 'up', keyboard_TF=True, print_TF=True)
+                        #下一頁
+                        control_keyboard(most_common_keypoint_id, 6, 'down', keyboard_TF=True, print_TF=True)
                         # control_keyboard(most_common_keypoint_id, 0, 'right', keyboard_TF=True, print_TF=False)
                         # control_keyboard(most_common_keypoint_id, 7, 'left', keyboard_TF=True, print_TF=False)
-                        control_keyboard(most_common_keypoint_id, 9, 'C', keyboard_TF=True, print_TF=True)
-                        control_keyboard(most_common_keypoint_id, 5, 'up', keyboard_TF=True, print_TF=True)
-                        control_keyboard(most_common_keypoint_id, 6, 'down', keyboard_TF=True, print_TF=True)
                         presstime_2 = time.time()
 
                     # right右鍵
