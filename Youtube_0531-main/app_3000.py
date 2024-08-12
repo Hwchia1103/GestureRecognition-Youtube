@@ -318,13 +318,13 @@ def main():
                     detect_mode = (detect_mode + 1) % 3
                     if detect_mode == 0:
                         what_mode = 'Sleep'
-                        playsound('rest.mp3', block=False)
+                        #playsound('rest.mp3', block=False)
                     if detect_mode == 1:
                         what_mode = 'Keyboard'
-                        playsound('keyboard.mp3', block=False)
+                        #playsound('keyboard.mp3', block=False)
                     if detect_mode == 2:
                         what_mode = 'Mouse'
-                        playsound('mouse.mp3', block=False)
+                        #playsound('mouse.mp3', block=False)
                     print(f'Current mode => {what_mode}')
                     presstime = time.time() + 1
 
@@ -374,7 +374,25 @@ def main():
                             i += 1
                             presstime_4 = time.time()
 
+
+                    # 動態手勢控制（修改為 PowerPoint 縮放功能）
+                    if most_common_fg_id[0][0] == 1 and most_common_fg_id[0][1] > 12:
+                        if time.time() - presstime_3 > 1.5:
+                            pyautogui.hotkey('ctrl', '+')  # 放大
+                            print('Zoom in')
+                            presstime_3 = time.time()
+                    elif most_common_fg_id[0][0] == 2 and most_common_fg_id[0][1] > 12:
+                        if time.time() - presstime_3 > 1.5:
+                            pyautogui.hotkey('ctrl', '-')  # 縮小
+                            print('Zoom out')
+                            presstime_3 = time.time()
+                    elif most_common_fg_id[0][0] == 0 and most_common_fg_id[0][1] > 12:
+                        if time.time() - presstime_3 > 1.5:
+                            pyautogui.hotkey('ctrl', '0')  # 重置縮放
+                            print('Reset zoom')
+                            presstime_3 = time.time()
                     # 動態手勢控制
+                    '''
                     if most_common_fg_id[0][0] == 1 and most_common_fg_id[0][1] > 12:
                         if time.time() - presstime_3 > 1.5:
                             #pyautogui.press(['shift', '>'])
@@ -387,7 +405,7 @@ def main():
                             pyautogui.hotkey('shift', '<')
                             print('slow down')
                             presstime_3 = time.time()
-
+                    '''
             # 滑鼠控制模式
             if detect_mode == 2:
                 if mouse_id == 0:  # Point gesture
